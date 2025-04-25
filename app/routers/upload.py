@@ -1,15 +1,13 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.database import get_db
-from app.models import User
-from app.services.auth import (
-    get_current_user,
-    get_current_user_from_token,
-    require_role,
-)
+from database import get_db
+from models import User
+from services.auth import get_current_user, require_role
+from services.chat_service import ChatService
 
-from app.config import USER_UPLOAD_PDF_PATH, DEFAULT_PDF_PATH
-from app.utils.pdf_loader import process_pdf_and_store
+
+from config import USER_UPLOAD_PDF_PATH, DEFAULT_PDF_PATH
+from utils.pdf_loader import process_pdf_and_store
 import os
 
 router = APIRouter()

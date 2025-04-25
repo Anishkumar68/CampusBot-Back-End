@@ -8,8 +8,9 @@ class ChatMessageCreate(BaseModel):
     user_id: int
     message: str
     chat_id: Optional[int]
-    model: str
-    temperature: float
+    model: str = "gpt-4o-mini"
+    temperature: float = 0.7
+    active_pdf_type: str = "default"  # 'default' or 'uploaded'
 
 
 class ChatMessageResponse(BaseModel):
@@ -25,7 +26,7 @@ class ChatSessionSchema(BaseModel):
     active_pdf_type: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated for Pydantic v2
 
 
 # ------- Full Chat Message Model -------
@@ -39,4 +40,4 @@ class ChatMessageBase(BaseModel):
     active_pdf_type: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated for Pydantic v2

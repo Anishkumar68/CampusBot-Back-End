@@ -1,14 +1,18 @@
-from langchain.llms import OpenAI, HuggingFaceHub
+from langchain_community.llms import OpenAI, HuggingFaceHub
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain, ConversationalRetrievalChain
-from langchain.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.memory import ConversationBufferMemory
+
+
 import os
+
 from dotenv import load_dotenv
 
-from app.config import DEFAULT_PDF_PATH, VECTOR_INDEX_PATH
-from app.utils.pdf_loader import process_pdf_and_store
+from config import DEFAULT_PDF_PATH, VECTOR_INDEX_PATH
+from utils.pdf_loader import process_pdf_and_store
+
 
 load_dotenv()
 

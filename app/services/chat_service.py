@@ -4,11 +4,11 @@ import os
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.config import USER_UPLOAD_PDF_PATH
-from app.models import ChatMessage, ChatSession, User
-from app.schemas import ChatMessageCreate, ChatMessageResponse
-from app.services.auth import get_current_user
-from app.services.llm_handler import LLMHandler
+from config import USER_UPLOAD_PDF_PATH
+from models import ChatMessage, ChatSession, User
+from schemas import ChatMessageCreate, ChatMessageResponse
+from services.auth import get_current_user
+from services.llm_handler import LLMHandler
 
 
 class ChatService:
@@ -62,7 +62,7 @@ class ChatService:
 
         return ChatMessageResponse(chat_id=chat_id, response=response_text)
 
-    from app.models import ChatSession
+    from models import ChatSession
 
     def _start_new_chat(self, user_id: int) -> str:
         latest_chat_session = (

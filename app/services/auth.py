@@ -4,14 +4,22 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
-from app.database import get_db
-from app.models import User
+from database import get_db
+from models import User
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends
 
+# .env file should contain the secret key
+# and algorithm for JWT token generation
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Secret and algorithm
-SECRET_KEY = "your_super_secret_key"
+SECRET_KEY = os.getenv("SECRET_KEY")
+# Default secret key for development; change in production
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -36,7 +44,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 
 # ✅ Dependency: Get current user from JWT
-def get_current_user_from_token(
+def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> User:
     try:
@@ -53,7 +61,7 @@ def get_current_user_from_token(
 
 
 def require_role(*roles):
-    def checker(current_user: User = Depends(get_current_user_from_token)):
+    def checker(current_user: User = Depends(get_current_user)):
         if current_user.role not in roles:
             raise HTTPException(status_code=403, detail="Insufficient role access")
         return current_user

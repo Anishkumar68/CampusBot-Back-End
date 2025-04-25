@@ -2,16 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
-from app.models import ChatMessage, ChatSession, User
-from app.database import get_db
-from app.schemas import (
+from models import ChatMessage, ChatSession, User
+from database import get_db
+from schemas import (
     ChatMessageCreate,
     ChatMessageResponse,
     ChatMessageBase,
     ChatSessionSchema,
 )
-from app.services.auth import get_current_user, get_current_user_from_token
-from app.services.chat_service import ChatService
+
+from services.auth import get_current_user
+from services.chat_service import ChatService
+
 
 router = APIRouter()
 
@@ -29,11 +31,13 @@ class ChatRequest(BaseModel):
 @router.post("/", response_model=ChatMessageResponse)
 async def chat(
     request: ChatRequest,
-    current_user: User = Depends(get_current_user_from_token),
+    # uncomment the line below to use the token for user_id
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+
     chat_message = ChatMessageCreate(
-        user_id=current_user.id,  # take from token
+        user_id=current_user.id,
         message=request.message,
         chat_id=request.chat_id,
         model=request.model,
@@ -49,7 +53,7 @@ async def chat(
 @router.get("/history/{chat_id}", response_model=List[ChatMessageBase])
 def get_chat_history(
     chat_id: str,
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     messages = (
