@@ -73,21 +73,27 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/token")
+@router.post("/auth/token")  # ✅ Better route
 def login_oauth2(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
 
     access_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=timedelta(minutes=15)
+        data={"sub": str(user.id)},
+        expires_delta=timedelta(minutes=15),  # Access token valid 15 min
     )
 
     refresh_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=timedelta(days=7)
+        data={"sub": str(user.id)},
+        expires_delta=timedelta(days=7),  # Refresh token valid 7 days
     )
+    print("Access Token:", access_token)
+    print("Refresh Token:", refresh_token)
+    # Return both tokens
+    # as part of the response
 
     return {
         "access_token": access_token,

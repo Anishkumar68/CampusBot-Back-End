@@ -3,21 +3,32 @@ from typing import Optional, List
 from datetime import datetime
 
 
-# ------- Chat Input -------
+# ------- Incoming Chat Request from Frontend (NO user_id needed now)
+class ChatRequest(BaseModel):
+    message: str
+    chat_id: Optional[str] = None
+    model: str = "gpt-4o-mini"
+    temperature: float = 0.7
+    active_pdf_type: Optional[str] = "default"
+
+
+# ------- Create Chat Message inside backend
 class ChatMessageCreate(BaseModel):
     user_id: int
     message: str
-    chat_id: Optional[int]
-    model: str = "gpt-4o-mini"
-    temperature: float = 0.7
-    active_pdf_type: str = "default"  # 'default' or 'uploaded'
+    chat_id: Optional[str]  # Same as ChatRequest
+    model: str
+    temperature: float
+    active_pdf_type: str
 
 
+# ------- API Response after sending message
 class ChatMessageResponse(BaseModel):
-    chat_id: int
+    chat_id: str
     response: str
 
 
+# ------- Chat Session (History of chats)
 class ChatSessionSchema(BaseModel):
     session_id: str
     user_id: int
@@ -26,10 +37,10 @@ class ChatSessionSchema(BaseModel):
     active_pdf_type: str
 
     class Config:
-        from_attributes = True  # Updated for Pydantic v2
+        from_attributes = True  # Pydantic v2 style
 
 
-# ------- Full Chat Message Model -------
+# ------- Chat Message (full history message model)
 class ChatMessageBase(BaseModel):
     id: int
     chat_id: str
@@ -40,4 +51,4 @@ class ChatMessageBase(BaseModel):
     active_pdf_type: str
 
     class Config:
-        from_attributes = True  # Updated for Pydantic v2
+        from_attributes = True  # Pydantic v2 style

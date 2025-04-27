@@ -2,7 +2,8 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import User
-from services.auth import get_current_user, require_role
+from services.auth import require_role, get_current_user
+from schemas import ChatMessageCreate, ChatMessageResponse
 from services.chat_service import ChatService
 
 
@@ -16,7 +17,7 @@ router = APIRouter()
 @router.post("/upload-pdf")
 async def upload_pdf(
     file: UploadFile = File(...),
-    current_user: User = Depends(require_role("admin", "premium")),
+    current_user: User = Depends(require_role("admin", "premium", "basic")),
     db: Session = Depends(get_db),
 ):
     with open(USER_UPLOAD_PDF_PATH, "wb") as f:
@@ -28,7 +29,7 @@ async def upload_pdf(
 
 @router.post("/reset-pdf")
 async def reset_pdf(
-    current_user: User = Depends(require_role("admin", "premium")),
+    current_user: User = Depends(require_role("admin", "premium", "basic")),
     db: Session = Depends(get_db),
 ):
     msg = process_pdf_and_store(DEFAULT_PDF_PATH)

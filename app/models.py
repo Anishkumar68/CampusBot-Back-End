@@ -24,8 +24,9 @@ class User(Base):
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String, unique=True, index=True)
+    session_id = Column(
+        String, primary_key=True, unique=True, index=True
+    )  # ✅ primary key
     user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     title = Column(String, default="Untitled Chat")
@@ -33,6 +34,8 @@ class ChatSession(Base):
 
     user = relationship("User", back_populates="chat_sessions")
     messages = relationship("ChatMessage", back_populates="chat_session")
+    # fixed here
+    # messages = relationship("ChatMessage", back_populates="chat_session")  # fixed here
 
 
 # ------- Chat Message Table -------
@@ -40,12 +43,12 @@ class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
     id = Column(Integer, primary_key=True, index=True)
-    chat_id = Column(String, ForeignKey("chat_sessions.session_id"))  # fixed here
+    chat_id = Column(String, ForeignKey("chat_sessions.session_id"))
     user_id = Column(Integer, ForeignKey("users.id"))
-    role = Column(String)  # 'user' or 'bot'
+    role = Column(String)
     content = Column(String)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    active_pdf_type = Column(String, default="default")  # 'default' or 'uploaded'
+    active_pdf_type = Column(String, default="default")
 
     user = relationship("User", back_populates="messages")
-    chat_session = relationship("ChatSession", back_populates="messages")  # fixed here
+    chat_session = relationship("ChatSession", back_populates="messages")
