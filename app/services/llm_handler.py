@@ -6,7 +6,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain, ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader  # if you need it later
 
@@ -29,8 +29,8 @@ class LLMHandler:
 
     def _load_model(self):
         if self.model_name == "openai":
-            return ChatOpenAI(  # ✅ Correct now
-                model_name="gpt-4o-mini",
+            return ChatOpenAI(
+                model_name="gpt-4o",
                 temperature=self.temperature,
                 openai_api_key=os.getenv("OPENAI_API_KEY"),
             )
@@ -52,7 +52,7 @@ class LLMHandler:
         return PromptTemplate(
             input_variables=["context", "question"],
             template=(
-                "You are CampusBot, a helpful university assistant.\n"
+                "You are CampusBot, a helpful rio grande university ohio assistant.\n"
                 "Answer the user's question based only on the context provided below.\n"
                 "If the context does not contain the answer, politely say 'I don't know.'\n\n"
                 "Context:\n{context}\n\n"
@@ -64,28 +64,30 @@ class LLMHandler:
     def get_response(self, message: str) -> str:
         try:
             if self.vectorstore:
-                retriever = self.vectorstore.as_retriever(search_kwargs={"k": 3})
-
                 chain = ConversationalRetrievalChain.from_llm(
                     llm=self.llm,
-                    retriever=retriever,
+                    retriever=self.vectorstore.as_retriever(),
                     memory=self.memory,
-                    combine_docs_chain_kwargs={"prompt": self.qa_prompt},
                 )
-
                 result = chain.run(message)
-                return result.strip()
-
+                return result.strip() if isinstance(result, str) else str(result)
             else:
-                # Fallback if no vectorstore available
-                fallback_prompt = PromptTemplate(
+                # 🔥 fallback to simple prompt
+                prompt = PromptTemplate(
                     input_variables=["question"],
-                    template="Answer clearly:\n\n{question}",
+                    template="Answer the question clearly and accurately:\n\n{question}",
                 )
-                chain = LLMChain(prompt=fallback_prompt, llm=self.llm)
-                result = chain.invoke({"question": message})
-                return result.strip()
+                chain = LLMChain(prompt=prompt, llm=self.llm)
+                result = chain.run({"question": message})
 
+                # 🔥 Here is the correct safe way
+                if isinstance(result, dict):
+                    text = result.get("text", "Sorry, no answer.")
+                    return text.strip()
+                elif isinstance(result, str):
+                    return result.strip()
+                else:
+                    return str(result)
         except Exception as e:
             print("LLMHandler Error:", e)
             return "Sorry, I couldn't process your question at the moment."
