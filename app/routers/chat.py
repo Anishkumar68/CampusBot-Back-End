@@ -19,7 +19,7 @@ from typing import List
 router = APIRouter()
 
 
-# ✅ POST /chat endpoint
+#  POST /chat endpoint
 @router.post("/", response_model=ChatMessageResponse)
 async def chat(
     request: ChatRequest,
@@ -27,7 +27,7 @@ async def chat(
     db: Session = Depends(get_db),
 ):
     chat_message = ChatMessageCreate(
-        user_id=current_user.id,  # ✅ Automatically set from token
+        user_id=current_user.id,  #  Automatically set from token
         message=request.message,
         chat_id=request.chat_id,
         model=request.model,
@@ -41,7 +41,7 @@ async def chat(
     return response
 
 
-# ✅ GET /chat/history/{chat_id}
+#  GET /chat/history/{chat_id}
 @router.get("/history/{chat_id}", response_model=List[ChatMessageBase])
 def get_chat_history(
     chat_id: str,
@@ -60,7 +60,7 @@ def get_chat_history(
     return messages
 
 
-# ✅ GET /chat/sessions/{user_id}
+#  GET /chat/sessions/{user_id}
 @router.get("/sessions/{user_id}", response_model=List[ChatSessionSchema])
 def get_user_chat_sessions(
     user_id: int,
@@ -81,7 +81,7 @@ def get_user_chat_sessions(
     return sessions
 
 
-# ✅ POST /chat/sessions
+#  POST /chat/sessions
 @router.post("/sessions", response_model=ChatSessionSchema)
 def create_chat_session(
     session: ChatSessionSchema,
@@ -99,7 +99,7 @@ def create_chat_session(
     return new_session
 
 
-# ✅ DELETE /chat/sessions/{session_id}
+#  DELETE /chat/sessions/{session_id}
 @router.delete("/sessions/{session_id}")
 def delete_chat_session(
     session_id: str,
@@ -120,7 +120,7 @@ def delete_chat_session(
     return {"message": "Session deleted successfully"}
 
 
-# ✅ DELETE /chat/history/{chat_id}
+#  DELETE /chat/history/{chat_id}
 @router.delete("/history/{chat_id}")
 def delete_chat_history(
     chat_id: str,
@@ -137,7 +137,7 @@ def delete_chat_history(
     return {"message": "Chat history deleted successfully"}
 
 
-# ✅ GET /chat/active_pdf_types
+#  GET /chat/active_pdf_types
 @router.get("/active_pdf_types")
 def get_active_pdf_types(
     current_user: User = Depends(get_current_user),
@@ -157,7 +157,7 @@ def get_active_pdf_types(
     return [pdf_type[0] for pdf_type in active_pdf_types]
 
 
-# ✅ POST /chat/sessions/{session_id}/set_active_pdf
+#  POST /chat/sessions/{session_id}/set_active_pdf
 @router.post("/sessions/{session_id}/set_active_pdf")
 def set_active_pdf_type(
     session_id: str,
@@ -179,7 +179,7 @@ def set_active_pdf_type(
     return {"message": "Active PDF type updated successfully"}
 
 
-# ✅ GET /chat/sessions/{session_id}/messages
+#  GET /chat/sessions/{session_id}/messages
 @router.get("/sessions/{session_id}/messages", response_model=List[ChatMessageBase])
 def get_session_messages(
     session_id: str,

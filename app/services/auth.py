@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Secret and algorithm
-SECRET_KEY = os.getenv("SECRET_KEY")  # ✅ fallback for local
+SECRET_KEY = os.getenv("SECRET_KEY")  #  fallback for local
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -20,7 +20,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/token"
-)  # ✅ OAuth2 correct token URL
+)  #  OAuth2 correct token URL
 
 
 def verify_password(plain_password, hashed_password):
@@ -45,10 +45,10 @@ def get_current_user(
 ) -> User:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")  # ✅ Treat sub as string
+        user_id: str = payload.get("sub")  #  Treat sub as string
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-        user = db.query(User).filter(User.id == int(user_id)).first()  # ✅ cast to int
+        user = db.query(User).filter(User.id == int(user_id)).first()  #  cast to int
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
         return user

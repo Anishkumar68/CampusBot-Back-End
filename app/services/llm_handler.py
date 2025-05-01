@@ -1,17 +1,11 @@
 import os
+from functools import lru_cache
 from dotenv import load_dotenv
 
 from langchain_openai import ChatOpenAI  # ✅ Correct for OpenAI models
 from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain, ConversationalRetrievalChain
+from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader  # if you need it later
-
-from config import DEFAULT_PDF_PATH, VECTOR_INDEX_PATH
-from utils.pdf_loader import process_pdf_and_store
 
 load_dotenv()
 
@@ -21,10 +15,11 @@ class LLMHandler:
         self.model_name = model
         self.temperature = temperature
         self.llm = self._load_model()
-        self.vectorstore = self._load_vectorstore()
+        # Initialize memory to store chat history across turns
         self.memory = ConversationBufferMemory(
             memory_key="chat_history", return_messages=True
         )
+        # Build a prompt template that uses chat history
         self.qa_prompt = self._build_prompt_template()
 
     def _load_model(self):
@@ -37,57 +32,71 @@ class LLMHandler:
         else:
             raise ValueError(f"Unsupported model: {self.model_name}")
 
-    def _load_vectorstore(self):
-        if not os.path.exists(VECTOR_INDEX_PATH):
-            process_pdf_and_store(DEFAULT_PDF_PATH)
-
-        if os.path.exists(VECTOR_INDEX_PATH):
-            return FAISS.load_local(
-                VECTOR_INDEX_PATH, HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-            )
-        else:
-            return None
-
     def _build_prompt_template(self):
         return PromptTemplate(
-            input_variables=["context", "question"],
+            input_variables=["chat_history", "question"],
             template=(
-                "You are CampusBot, a helpful rio grande university ohio assistant.\n"
-                "Answer the user's question based only on the context provided below.\n"
-                "If the context does not contain the answer, politely say 'I don't know.'\n\n"
-                "Context:\n{context}\n\n"
-                "Question:\n{question}\n\n"
-                "Helpful Answer:"
+                "You are CampusBot, a helpful Rio Grande University Ohio assistant.\n"
+                "Use the following chat history to inform your response.\n\n"
+                "{chat_history}\n\n"
+                "User Question: {question}\n\n"
+                "Answer:"
             ),
         )
 
     def get_response(self, message: str) -> str:
+        """Pure-LLM response using memory to track chat history."""
         try:
-            if self.vectorstore:
-                chain = ConversationalRetrievalChain.from_llm(
-                    llm=self.llm,
-                    retriever=self.vectorstore.as_retriever(),
-                    memory=self.memory,
-                )
-                result = chain.run(message)
-                return result.strip() if isinstance(result, str) else str(result)
-            else:
-                # 🔥 fallback to simple prompt
-                prompt = PromptTemplate(
-                    input_variables=["question"],
-                    template="Answer the question clearly and accurately:\n\n{question}",
-                )
-                chain = LLMChain(prompt=prompt, llm=self.llm)
-                result = chain.run({"question": message})
+            # 1. Add user message to memory
+            self.memory.chat_memory.add_user_message(message)
 
-                # 🔥 Here is the correct safe way
-                if isinstance(result, dict):
-                    text = result.get("text", "Sorry, no answer.")
-                    return text.strip()
-                elif isinstance(result, str):
-                    return result.strip()
-                else:
-                    return str(result)
+            # 2. Format chat history into a single string7
+
+            history = []
+            for msg in self.memory.chat_memory.messages:
+                role = "User" if msg.type == "human" else "Bot"
+                history.append(f"{role}: {msg.content}")
+            history_text = "\n".join(history)
+
+            # 3. Invoke the LLMChain with history and current question
+            chain = LLMChain(prompt=self.qa_prompt, llm=self.llm)
+            result = chain.invoke(
+                {
+                    "chat_history": history_text,
+                    "question": message,
+                }
+            )
+            answer = result["text"] if isinstance(result, dict) else result
+
+            # 4. Add bot response to memory
+            self.memory.chat_memory.add_ai_message(answer)
+
+            return answer.strip()
+
         except Exception as e:
             print("LLMHandler Error:", e)
             return "Sorry, I couldn't process your question at the moment."
+
+    def suggest_followups(self, user_input: str, bot_answer: str) -> list[str]:
+        prompt = f"""
+        Suggest 2 useful follow-up questions for the user based on this conversation.
+
+        User: {user_input}
+        Bot: {bot_answer}
+
+        Respond ONLY with a list in JSON format like:
+        ["Follow-up 1?", "Follow-up 2?"]
+        """
+        try:
+            result = self.llm.invoke(prompt)
+            return eval(result) if result.strip().startswith("[") else []
+        except:
+            return []
+
+
+@lru_cache(maxsize=1)
+def get_llm_handler() -> LLMHandler:
+    """
+    Returns a singleton LLMHandler (with retained memory), so that chat history persists across calls.
+    """
+    return LLMHandler(model="openai", temperature=0.7)
