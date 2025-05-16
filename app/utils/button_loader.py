@@ -2,6 +2,7 @@ import csv
 from typing import List, Dict
 import os
 
+
 # Safe path for your CSV
 csv_path = os.path.join(os.path.dirname(__file__), "../rag/quickbuttons(Sheet1).csv")
 
