@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# from routers.buttons import
+
 app = FastAPI()
 
 # Middleware to handle CORS
@@ -22,3 +24,4 @@ Base.metadata.create_all(bind=engine)
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(upload.router, prefix="/files", tags=["file"])
 app.include_router(auth.router, prefix="/auth")
+# app.include_router(buttons.router, prefix="/buttons")

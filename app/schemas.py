@@ -22,12 +22,6 @@ class ChatMessageCreate(BaseModel):
     active_pdf_type: str
 
 
-# ------- API Response after sending message
-class ChatMessageResponse(BaseModel):
-    chat_id: str
-    response: str
-
-
 # ------- Chat Session (History of chats)
 class ChatSessionSchema(BaseModel):
     session_id: str
@@ -51,7 +45,7 @@ class ChatMessageBase(BaseModel):
     active_pdf_type: str
 
     class Config:
-        from_attributes = True  # Pydantic v2 style
+        from_attributes = True
 
 
 class ChatMessageResponse(BaseModel):
@@ -60,4 +54,4 @@ class ChatMessageResponse(BaseModel):
     followups: Optional[Dict[str, List[str]]] = None  # <== Add this
 
     class Config:
-        orm_mode = True
+        from_attributes = True

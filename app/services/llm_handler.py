@@ -1,6 +1,7 @@
 import os
 from functools import lru_cache
 from dotenv import load_dotenv
+import json
 
 from langchain_openai import ChatOpenAI  # ✅ Correct for OpenAI models
 from langchain.prompts import PromptTemplate
@@ -77,21 +78,31 @@ class LLMHandler:
             print("LLMHandler Error:", e)
             return "Sorry, I couldn't process your question at the moment."
 
+    # suggested questions
     def suggest_followups(self, user_input: str, bot_answer: str) -> list[str]:
-        prompt = f"""
-        Suggest 2 useful follow-up questions for the user based on this conversation.
-
-        User: {user_input}
-        Bot: {bot_answer}
-
-        Respond ONLY with a list in JSON format like:
-        ["Follow-up 1?", "Follow-up 2?"]
         """
-        try:
-            result = self.llm.invoke(prompt)
-            return eval(result) if result.strip().startswith("[") else []
-        except:
-            return []
+        Suggest follow-up questions based on the user's input and the bot's answer.
+        This is a simple example; you can enhance it with more complex logic.
+        """
+        prompt = (
+            "Based on the user's question and the bot's answer, suggest 1 follow-up questions.\n"
+            f"User Question: {user_input}\n"
+            f"Bot Answer: {bot_answer}\n\n"
+            "Suggested Follow-up Questions:"
+        )
+
+        question_chain = LLMChain(
+            prompt=PromptTemplate(
+                input_variables=["question"],
+                template=prompt,
+            ),
+            llm=self.llm,
+        )
+        result = question_chain.invoke({"question": prompt})
+        followup_questions = result["text"] if isinstance(result, dict) else result
+        followup_questions = followup_questions.strip().split("\n")
+        followup_questions = [q.strip() for q in followup_questions if q.strip()]
+        return followup_questions
 
 
 @lru_cache(maxsize=1)
