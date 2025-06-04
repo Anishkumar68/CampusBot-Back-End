@@ -18,9 +18,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/token"
-)  #  OAuth2 correct token URL
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")  #  OAuth2 correct token URL
 
 
 def verify_password(plain_password, hashed_password):

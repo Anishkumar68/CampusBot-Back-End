@@ -1,13 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from models import User
-from database import get_db
-from services.auth import get_password_hash, verify_password, create_access_token
 from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import jwt, JWTError
 
-router = APIRouter()
+from models import User
+from database import get_db
+from services.auth import (
+    get_password_hash,
+    verify_password,
+    create_access_token,
+    SECRET_KEY,
+    ALGORITHM,
+)
+
+router = APIRouter(prefix="/auth", tags=["auth"])  # ✅ all routes under /auth
 
 
 # 📦 DTOs (Schemas)
@@ -26,7 +34,7 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
-# 📦 Routes
+# ✅ Register new user
 @router.post("/register")
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
@@ -47,9 +55,23 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return {"message": "User registered successfully", "user_id": new_user.id}
+    # ✅ Generate tokens after signup
+    access_token = create_access_token(
+        data={"sub": str(new_user.id)}, expires_delta=timedelta(minutes=15)
+    )
+    refresh_token = create_access_token(
+        data={"sub": str(new_user.id)}, expires_delta=timedelta(days=7)
+    )
+
+    return {
+        "message": "User registered successfully",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
 
 
+# ✅ Login route with JSON body
 @router.post("/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
@@ -57,13 +79,10 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(
-        data={"sub": str(user.id)},
-        expires_delta=timedelta(minutes=15),  # Access token: 15 mins
+        data={"sub": str(user.id)}, expires_delta=timedelta(minutes=15)
     )
-
     refresh_token = create_access_token(
-        data={"sub": str(user.id)},
-        expires_delta=timedelta(days=7),  # Refresh token: 7 days
+        data={"sub": str(user.id)}, expires_delta=timedelta(days=7)
     )
 
     return {
@@ -73,7 +92,8 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/auth/token")  # ✅ Better route
+# ✅ OAuth2-compatible login route (for Swagger or form use)
+@router.post("/token")
 def login_oauth2(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
@@ -82,18 +102,11 @@ def login_oauth2(
         raise HTTPException(status_code=401, detail="Incorrect username or password")
 
     access_token = create_access_token(
-        data={"sub": str(user.id)},
-        expires_delta=timedelta(minutes=15),  # Access token valid 15 min
+        data={"sub": str(user.id)}, expires_delta=timedelta(minutes=15)
     )
-
     refresh_token = create_access_token(
-        data={"sub": str(user.id)},
-        expires_delta=timedelta(days=7),  # Refresh token valid 7 days
+        data={"sub": str(user.id)}, expires_delta=timedelta(days=7)
     )
-    print("Access Token:", access_token)
-    print("Refresh Token:", refresh_token)
-    # Return both tokens
-    # as part of the response
 
     return {
         "access_token": access_token,
@@ -102,12 +115,9 @@ def login_oauth2(
     }
 
 
-# 📦 New Route: Refresh Token
+# ✅ Refresh token route
 @router.post("/refresh")
 def refresh_token(data: RefreshTokenRequest):
-    from services.auth import SECRET_KEY, ALGORITHM
-    from jose import jwt, JWTError
-
     try:
         payload = jwt.decode(data.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
