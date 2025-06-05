@@ -16,8 +16,8 @@ app.add_middleware(
 
 
 # Now import and add routers
-from routers import chat, upload, auth
-from database import Base, engine
+from app.routers import chat, upload, auth
+from app.database import Base, engine
 
 Base.metadata.create_all(bind=engine)
 
