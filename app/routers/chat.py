@@ -10,10 +10,10 @@ from app.schemas import (
     ChatSessionSchema,
 )
 
-from services.chat_service import ChatService
-from services.auth import get_current_user, require_role
-from config import USER_UPLOAD_PDF_PATH, DEFAULT_PDF_PATH
-from utils.pdf_loader import process_pdf_and_store
+from app.services.chat_service import ChatService
+from app.services.auth import get_current_user, require_role
+from app.config import USER_UPLOAD_PDF_PATH, DEFAULT_PDF_PATH
+from app.utils.pdf_loader import process_pdf_and_store
 from typing import List
 
 router = APIRouter()
