@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db
-from models import User
+from app.database import get_db
+from app.models import User
 from services.auth import require_role, get_current_user
 from schemas import ChatMessageCreate, ChatMessageResponse
 from services.chat_service import ChatService

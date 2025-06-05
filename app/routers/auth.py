@@ -6,8 +6,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 
 from app.models import User
-from database import get_db
-from services.auth import (
+from app.database import get_db
+from app.services.auth import (
     get_password_hash,
     verify_password,
     create_access_token,
