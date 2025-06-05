@@ -2,9 +2,9 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
-from services.auth import require_role, get_current_user
+from app.services.auth import require_role, get_current_user
 from schemas import ChatMessageCreate, ChatMessageResponse
-from services.chat_service import ChatService
+from app.services.chat_service import ChatService
 
 
 from config import USER_UPLOAD_PDF_PATH, DEFAULT_PDF_PATH

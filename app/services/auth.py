@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
-from database import get_db
-from models import User
+from app.database import get_db
+from app.models import User
 import os
 from dotenv import load_dotenv
 

@@ -4,10 +4,10 @@ import os
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from config import USER_UPLOAD_PDF_PATH
-from models import ChatMessage, ChatSession, User
-from schemas import ChatMessageCreate, ChatMessageResponse
-from utils.button_loader import (
+from app.config import USER_UPLOAD_PDF_PATH
+from app.models import ChatMessage, ChatSession, User
+from app.schemas import ChatMessageCreate, ChatMessageResponse
+from app.utils.button_loader import (
     get_button_questions,
 )
 from utils.intent_matcher import match_intent
