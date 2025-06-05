@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 
-from models import User
+from app.models import User
 from database import get_db
 from services.auth import (
     get_password_hash,
