@@ -4,7 +4,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
-from config import DEFAULT_PDF_PATH, USER_UPLOAD_PDF_PATH, VECTOR_INDEX_PATH
+from app.config import DEFAULT_PDF_PATH, USER_UPLOAD_PDF_PATH, VECTOR_INDEX_PATH
 
 
 class VectorStoreManager:

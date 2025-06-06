@@ -10,14 +10,14 @@ from app.schemas import ChatMessageCreate, ChatMessageResponse
 from app.utils.button_loader import (
     get_button_questions,
 )
-from utils.intent_matcher import match_intent
-from utils.suggestion_engine import get_rule_based_suggestions
+from app.utils.intent_matcher import match_intent
+from app.utils.suggestion_engine import get_rule_based_suggestions
 
 
-from services.llm_handler import (
+from app.services.llm_handler import (
     LLMHandler,
 )  # Assuming this is a utility function to get the LLM handler
-from utils.pdf_loader import (
+from app.utils.pdf_loader import (
     process_pdf_and_store,
 )  # Assuming this is a utility function to process PDFs
 
