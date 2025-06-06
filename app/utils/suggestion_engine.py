@@ -1,4 +1,4 @@
-from utils.button_loader import load_button_data
+from app.utils.button_loader import load_button_data
 from random import sample
 from typing import List, Dict
 
