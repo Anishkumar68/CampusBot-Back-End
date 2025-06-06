@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 # from routers.buttons import
 
@@ -25,3 +26,13 @@ app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(upload.router, prefix="/files", tags=["file"])
 app.include_router(auth.router, prefix="/auth")
 # app.include_router(buttons.router, prefix="/buttons")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "app.main:app",  # Adjust path if needed
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", 8000)),  # Render uses dynamic $PORT
+    )
