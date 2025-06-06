@@ -9,7 +9,7 @@ app = FastAPI()
 # Middleware to handle CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://campus-bot-front-end.vercel.app/", "http://localhost:5173"],
+    allow_origins=["https://campus-bot-front-end.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
