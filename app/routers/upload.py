@@ -7,8 +7,8 @@ from app.schemas import ChatMessageCreate, ChatMessageResponse
 from app.services.chat_service import ChatService
 
 
-from config import USER_UPLOAD_PDF_PATH, DEFAULT_PDF_PATH
-from utils.pdf_loader import process_pdf_and_store
+from app.config import USER_UPLOAD_PDF_PATH, DEFAULT_PDF_PATH
+from app.utils.pdf_loader import process_pdf_and_store
 import os
 
 router = APIRouter()
