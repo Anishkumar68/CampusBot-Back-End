@@ -1,6 +1,5 @@
 from utils.button_loader import load_button_data
 
-
 def match_intent(user_input: str) -> dict | None:
     """
     Rule-based intent matcher using keyword scanning from button data.
@@ -15,6 +14,5 @@ def match_intent(user_input: str) -> dict | None:
 
         for keyword in keywords:
             if keyword.strip().lower() in user_input_lower:
-                return button  # ✅ Exact or partial match found
-
-    return None  # ❌ No match found
+                return button 
+    return None  
