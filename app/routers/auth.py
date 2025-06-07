@@ -15,10 +15,10 @@ from app.services.auth import (
     ALGORITHM,
 )
 
-router = APIRouter(prefix="/auth", tags=["auth"])  # ✅ all routes under /auth
+router = APIRouter()  
 
 
-# 📦 DTOs (Schemas)
+# schema 
 class RegisterRequest(BaseModel):
     email: str
     full_name: str
@@ -34,7 +34,7 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
-# ✅ Register new user
+# register new user
 @router.post("/register")
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
@@ -55,7 +55,7 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # ✅ Generate tokens after signup
+    #token genrator 
     access_token = create_access_token(
         data={"sub": str(new_user.id)}, expires_delta=timedelta(minutes=15)
     )
@@ -71,7 +71,7 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     }
 
 
-# ✅ Login route with JSON body
+# login route
 @router.post("/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
@@ -92,7 +92,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     }
 
 
-# ✅ OAuth2-compatible login route (for Swagger or form use)
+# auth  with token
 @router.post("/token")
 def login_oauth2(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
@@ -115,7 +115,7 @@ def login_oauth2(
     }
 
 
-# ✅ Refresh token route
+# refresh token
 @router.post("/refresh")
 def refresh_token(data: RefreshTokenRequest):
     try:
