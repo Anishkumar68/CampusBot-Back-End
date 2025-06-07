@@ -2,37 +2,43 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-# from routers.buttons import
+from app.routers import chat, upload, auth
+from app.database import Base, engine
 
 app = FastAPI()
 
-# Middleware to handle CORS
+# for auth links
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://campus-bot-front-end.vercel.app"],
+    allow_origins=[
+        "https://campus-bot-front-end.vercel.app",
+        "http://localhost:5173"  # optional for local dev
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Now import and add routers
-from app.routers import chat, upload, auth
-from app.database import Base, engine
-
 Base.metadata.create_all(bind=engine)
 
+# routing
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(upload.router, prefix="/files", tags=["file"])
-app.include_router(auth.router, prefix="/auth")
-# app.include_router(buttons.router, prefix="/buttons")
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+# app.include_router(buttons.router, prefix="/buttons", tags=["buttons"])  # Enable if needed
 
+# for api running status
+@app.get("/")
+def root():
+    return {"message": "CampusBot API is running."}
 
+# ports for deployment
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(
-        "app.main:app",  # Adjust path if needed
+        "app.main:app",
         host="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),  # Render uses dynamic $PORT
+        port=int(os.getenv("PORT", 8000)),
+        reload=True  
     )
