@@ -19,6 +19,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+print("✅ Starting FastAPI app")
+
+try:
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database schema created")
+except Exception as e:
+    print("❌ Database error:", e)
+
 
 Base.metadata.create_all(bind=engine)
 
