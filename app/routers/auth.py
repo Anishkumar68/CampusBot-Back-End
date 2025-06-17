@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt, JWTError
+import os
+
 
 from app.models import User
 from app.database import get_db
@@ -13,12 +15,14 @@ from app.services.auth import (
     create_access_token,
     SECRET_KEY,
     ALGORITHM,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS,
 )
 
-router = APIRouter()  
+router = APIRouter()
 
 
-# schema 
+# schema
 class RegisterRequest(BaseModel):
     email: str
     full_name: str
@@ -55,12 +59,14 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    #token genrator 
+    # token genrator
     access_token = create_access_token(
-        data={"sub": str(new_user.id)}, expires_delta=timedelta(minutes=15)
+        data={"sub": str(new_user.id)},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = create_access_token(
-        data={"sub": str(new_user.id)}, expires_delta=timedelta(days=7)
+        data={"sub": str(new_user.id)},
+        expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
     )
 
     return {
@@ -79,10 +85,12 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=timedelta(minutes=15)
+        data={"sub": str(user.id)},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=timedelta(days=7)
+        data={"sub": str(user.id)},
+        expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
     )
 
     return {
@@ -102,10 +110,12 @@ def login_oauth2(
         raise HTTPException(status_code=401, detail="Incorrect username or password")
 
     access_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=timedelta(minutes=15)
+        data={"sub": str(user.id)},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=timedelta(days=7)
+        data={"sub": str(user.id)},
+        expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
     )
 
     return {
@@ -125,7 +135,8 @@ def refresh_token(data: RefreshTokenRequest):
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
         new_access_token = create_access_token(
-            data={"sub": str(user_id)}, expires_delta=timedelta(minutes=15)
+            data={"sub": str(user_id)},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
         )
 
         return {"access_token": new_access_token, "token_type": "bearer"}
