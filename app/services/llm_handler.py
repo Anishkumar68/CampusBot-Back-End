@@ -37,29 +37,39 @@ class LLMHandler:
         return PromptTemplate(
             input_variables=["chat_history", "question"],
             template=(
-                "You are CampusBot, a helpful Rio Grande University Ohio assistant.\n"
-                "Use the following chat history to inform your response.\n\n"
-                "{chat_history}\n\n"
-                "User Question: {question}\n\n"
+                "You are CampusBot, a helpful assistant for Rio Grande University, Ohio.\n"
+                "You always provide concise, accurate, and helpful answers for students and visitors.\n"
+                "Always include official and relevant links when available.\n"
+                "Never guess or provide false information — if unsure, say so and guide where to look.\n"
+                "You do not provide offensive, political, religious, or fabricated content.\n"
+                "Use the full conversation context from {chat_history} to understand and reply clearly.\n"
+                "Interpret follow-up questions using previous questions and answers.\n"
+                "Current Question: {question}\n\n"
                 "Answer:"
             ),
         )
 
     def get_response(self, message: str) -> str:
-        """Pure-LLM response using memory to track chat history."""
+        """Pure-LLM response using memory to track last 10 messages only."""
         try:
             # 1. Add user message to memory
             self.memory.chat_memory.add_user_message(message)
 
-            # 2. Format chat history into a single string7
+            # 2. Trim memory to last 10 messages
+            max_messages = 10  # 5 exchanges (user + bot)
+            if len(self.memory.chat_memory.messages) > max_messages:
+                self.memory.chat_memory.messages = self.memory.chat_memory.messages[
+                    -max_messages:
+                ]
 
+            # 3. Format chat history
             history = []
             for msg in self.memory.chat_memory.messages:
                 role = "User" if msg.type == "human" else "Bot"
                 history.append(f"{role}: {msg.content}")
             history_text = "\n".join(history)
 
-            # 3. Invoke the LLMChain with history and current question
+            # 4. Get response
             chain = LLMChain(prompt=self.qa_prompt, llm=self.llm)
             result = chain.invoke(
                 {
@@ -69,40 +79,89 @@ class LLMHandler:
             )
             answer = result["text"] if isinstance(result, dict) else result
 
-            # 4. Add bot response to memory
+            # 5. Add bot response to memory
             self.memory.chat_memory.add_ai_message(answer)
 
             return answer.strip()
-
         except Exception as e:
-            print("LLMHandler Error:", e)
-            return "Sorry, I couldn't process your question at the moment."
+            return f"Error generating response: {str(e)}"
+
+    def reset_memory(self):
+        """Reset the conversation memory."""
+        self.memory.chat_memory.clear()
+        self.memory = ConversationBufferMemory(
+            memory_key="chat_history", return_messages=True
+        )
+        self.qa_prompt = self._build_prompt_template()
+        """        Reset the conversation memory and prompt template.
+        This is useful for starting a new conversation without previous context."""
+
+    def get_chat_history(self) -> str:
+        """Get the current chat history as a formatted string."""
+        history = []
+        for msg in self.memory.chat_memory.messages:
+            role = "User" if msg.type == "human" else "Bot"
+            history.append(f"{role}: {msg.content}")
+        return "\n".join(history)
+
+    def get_memory(self) -> str:
+        """Get the current memory as a JSON string."""
+        memory_data = {
+            "chat_history": self.memory.chat_memory.messages,
+            "prompt_template": self.qa_prompt.template,
+        }
+        return json.dumps(memory_data, indent=2)
+
+    def load_memory(self, memory_json: str):
+        """Load memory from a JSON string."""
+        try:
+            memory_data = json.loads(memory_json)
+            self.memory.chat_memory.messages = memory_data.get("chat_history", [])
+            self.qa_prompt.template = memory_data.get(
+                "prompt_template", self.qa_prompt.template
+            )
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid memory JSON format: {str(e)}")
 
     # suggested questions
     def suggest_followups(self, user_input: str, bot_answer: str) -> list[str]:
         """
-        Suggest follow-up questions based on the user's input and the bot's answer.
-        This is a simple example; you can enhance it with more complex logic.
+        Suggest 3 follow-up questions based on the user's input and the bot's answer.
+        Output is clean strings to be shown as clickable buttons in the frontend.
         """
-        prompt = (
-            "Based on the user's question and the bot's answer, suggest 1 follow-up questions.\n"
-            f"User Question: {user_input}\n"
-            f"Bot Answer: {bot_answer}\n\n"
-            "Suggested Follow-up Questions:"
+        prompt_template = PromptTemplate(
+            input_variables=["user_question", "bot_response"],
+            template=(
+                "You are a helpful assistant.\n"
+                "Given the user's question and the bot's answer, suggest 3 short follow-up questions a user might ask next.\n\n"
+                "User Question: {user_question}\n"
+                "Bot Answer: {bot_response}\n\n"
+                "Related Questions:\n"
+                "1."
+            ),
         )
 
         question_chain = LLMChain(
-            prompt=PromptTemplate(
-                input_variables=["question"],
-                template=prompt,
-            ),
+            prompt=prompt_template,
             llm=self.llm,
         )
-        result = question_chain.invoke({"question": prompt})
-        followup_questions = result["text"] if isinstance(result, dict) else result
-        followup_questions = followup_questions.strip().split("\n")
-        followup_questions = [q.strip() for q in followup_questions if q.strip()]
-        return followup_questions
+
+        result = question_chain.invoke(
+            {"user_question": user_input, "bot_response": bot_answer}
+        )
+
+        raw_text = result.get("text", "") if isinstance(result, dict) else str(result)
+        lines = raw_text.strip().split("\n")
+
+        # Normalize and clean each question
+        followup_questions = []
+        for line in lines:
+            line = line.strip()
+            if line and any(char.isalpha() for char in line):
+                question = line.lstrip("1234567890.:- ").strip()
+                followup_questions.append(question)
+
+        return followup_questions[:3]
 
 
 @lru_cache(maxsize=1)
