@@ -11,8 +11,8 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-         "http://localhost:5173",                     # Local development (Vite)
-        "https://campus-bot-front-end.vercel.app",   # Deployed frontend (Vercel)
+        "http://localhost:5173",
+        "https://campus-bot-front-end.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -36,17 +36,17 @@ app.include_router(upload.router, prefix="/files", tags=["file"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 # app.include_router(buttons.router, prefix="/buttons", tags=["buttons"])  # Enable if needed
 
+
 # for api running status
 @app.get("/")
 def root():
     return {"message": "CampusBot API is running."}
 
+
 # ports for deployment
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),
-        reload=True  
+        "app.main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), reload=True
     )
