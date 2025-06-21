@@ -1,12 +1,13 @@
 import os
+import json
 from functools import lru_cache
 from dotenv import load_dotenv
-import json
 
-from langchain_openai import ChatOpenAI  # ✅ Correct for OpenAI models
+from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
-from langchain.memory import ConversationBufferMemory
+
+from app.services.memory_handler import MemoryHandler  # Redis-based
 
 load_dotenv()
 
@@ -16,12 +17,13 @@ class LLMHandler:
         self.model_name = model
         self.temperature = temperature
         self.llm = self._load_model()
-        # Initialize memory to store chat history across turns
-        self.memory = ConversationBufferMemory(
-            memory_key="chat_history", return_messages=True
-        )
-        # Build a prompt template that uses chat history
         self.qa_prompt = self._build_prompt_template()
+        self.user_memories = {}
+
+    def _get_user_memory(self, user_id: str) -> MemoryHandler:
+        if user_id not in self.user_memories:
+            self.user_memories[user_id] = MemoryHandler(user_id=user_id, max_turns=5)
+        return self.user_memories[user_id]
 
     def _load_model(self):
         if self.model_name == "openai":
@@ -30,166 +32,92 @@ class LLMHandler:
                 temperature=self.temperature,
                 openai_api_key=os.getenv("OPENAI_API_KEY"),
             )
-        else:
-            raise ValueError(f"Unsupported model: {self.model_name}")
+        raise ValueError(f"Unsupported model: {self.model_name}")
 
     def _build_prompt_template(self):
         return PromptTemplate(
             input_variables=["chat_history", "question"],
             template=(
-                """
-              You are CampusBot, the official virtual assistant for Rio Grande University, Ohio.
-              a expert in providing accurate information about the university's departments, faculty, staff, and services.
-              a worlds best university assistant, trained to answer questions about Rio Grande University.
-
-🎓 Your mission is to provide students, staff, and website visitors with accurate, relevant, and complete information about the university if you don't info about that refer to https://www.rio.edu/academics/faculty-directory.
-You have access to the following information:
-- Faculty and staff names, titles, and contact information.
-
-don't say Phone: [Insert Admissions Office Phone Number]
-Email: [Insert Admissions Office Email]
-this type of response is not allowed.
-
-🧾 When answering:
-- Always prioritize **precise and helpful factual information** (e.g., names, phone numbers, email addresses, office hours, department names, building locations, etc.).
-- Provide **direct answers** — do not deflect to general links if information is available.
-- Include **official, working links** only when they are accurate and add value. Never guess or fabricate URLs.
-- If information is unavailable or uncertain, be honest — suggest where the user can find it (e.g., “Please visit the official directory at rio.edu/faculty-directory”).
-
-🧠 Always use the full conversation context in {chat_history} to interpret follow-ups and ensure continuity.
-
-❌ Never provide political, religious, offensive, or fabricated responses.
-✅ Your tone should always be respectful, concise, and student-friendly.
-✅ Short answers are okay when appropriate — long answers are fine if needed to be helpful.
-
----
-
-Current Question:
-{question}
-
-Answer:
-"""
+                "You are CampusBot, the official virtual assistant for Rio Grande University, Ohio.\n"
+                "An expert in providing accurate information about the university's departments, faculty, staff, and services.\n\n"
+                "🎓 Your mission is to provide precise and helpful answers. If unsure, refer to https://www.rio.edu/academics/faculty-directory.\n\n"
+                "Chat History:\n{chat_history}\n\n"
+                "Current Question:\n{question}\n\n"
+                "Answer:"
             ),
         )
 
-    def get_response(self, message: str) -> str:
-        """Pure-LLM response using memory to track last 10 messages only."""
+    def get_response(self, user_id: str, message: str) -> str:
         try:
-            # 1. Add user message to memory
-            self.memory.chat_memory.add_user_message(message)
+            memory = self._get_user_memory(user_id)
+            memory.add_user_message(message)
 
-            # 2. Trim memory to last 10 messages
-            max_messages = 10  # 5 exchanges (user + bot)
-            if len(self.memory.chat_memory.messages) > max_messages:
-                self.memory.chat_memory.messages = self.memory.chat_memory.messages[
-                    -max_messages:
-                ]
-
-            # 3. Format chat history
-            history = []
-            for msg in self.memory.chat_memory.messages:
-                role = "User" if msg.type == "human" else "Bot"
-                history.append(f"{role}: {msg.content}")
+            history = [
+                f"{'User' if msg.type == 'human' else 'Bot'}: {msg.content}"
+                for msg in memory.get_messages()
+            ]
             history_text = "\n".join(history)
 
-            # 4. Get response
             chain = LLMChain(prompt=self.qa_prompt, llm=self.llm)
-            result = chain.invoke(
-                {
-                    "chat_history": history_text,
-                    "question": message,
-                }
-            )
+            result = chain.invoke({"chat_history": history_text, "question": message})
             answer = result["text"] if isinstance(result, dict) else result
 
-            # 5. Add bot response to memory
-            self.memory.chat_memory.add_ai_message(answer)
-
+            memory.add_ai_message(answer)
             return answer.strip()
         except Exception as e:
             return f"Error generating response: {str(e)}"
 
-    def reset_memory(self):
-        """Reset the conversation memory."""
-        self.memory.chat_memory.clear()
-        self.memory = ConversationBufferMemory(
-            memory_key="chat_history", return_messages=True
-        )
+    def reset_memory(self, user_id: str):
+        memory = self._get_user_memory(user_id)
+        memory.clear()
         self.qa_prompt = self._build_prompt_template()
-        """        Reset the conversation memory and prompt template.
-        This is useful for starting a new conversation without previous context."""
 
-    def get_chat_history(self) -> str:
-        """Get the current chat history as a formatted string."""
-        history = []
-        for msg in self.memory.chat_memory.messages:
-            role = "User" if msg.type == "human" else "Bot"
-            history.append(f"{role}: {msg.content}")
-        return "\n".join(history)
+    def get_chat_history(self, user_id: str) -> str:
+        memory = self._get_user_memory(user_id)
+        return "\n".join(
+            [
+                f"{'User' if msg.type == 'human' else 'Bot'}: {msg.content}"
+                for msg in memory.get_messages()
+            ]
+        )
 
-    def get_memory(self) -> str:
-        """Get the current memory as a JSON string."""
-        memory_data = {
-            "chat_history": self.memory.chat_memory.messages,
-            "prompt_template": self.qa_prompt.template,
-        }
-        return json.dumps(memory_data, indent=2)
+    def get_memory_json(self, user_id: str) -> str:
+        memory = self._get_user_memory(user_id)
+        return json.dumps(
+            [
+                {"type": msg.type, "content": msg.content}
+                for msg in memory.get_messages()
+            ],
+            indent=2,
+        )
 
-    def load_memory(self, memory_json: str):
-        """Load memory from a JSON string."""
-        try:
-            memory_data = json.loads(memory_json)
-            self.memory.chat_memory.messages = memory_data.get("chat_history", [])
-            self.qa_prompt.template = memory_data.get(
-                "prompt_template", self.qa_prompt.template
-            )
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid memory JSON format: {str(e)}")
-
-    # suggested questions
     def suggest_followups(self, user_input: str, bot_answer: str) -> list[str]:
-        """
-        Suggest 3 follow-up questions based on the user's input and the bot's answer.
-        Output is clean strings to be shown as clickable buttons in the frontend.
-        """
         prompt_template = PromptTemplate(
             input_variables=["user_question", "bot_response"],
             template=(
-                "You are a helpful assistant.\n"
-                "Given the user's question and the bot's answer, suggest 3 short follow-up questions a user might ask next.\n\n"
-                "User Question: {user_question}\n"
-                "Bot Answer: {bot_response}\n\n"
-                "Related Questions:\n"
-                "1."
+                "Given this Q&A:\n"
+                "Q: {user_question}\n"
+                "A: {bot_response}\n\n"
+                "Suggest 3 short follow-up questions:\n1."
             ),
         )
 
-        question_chain = LLMChain(
-            prompt=prompt_template,
-            llm=self.llm,
-        )
+        chain = LLMChain(prompt=prompt_template, llm=self.llm)
+        result = chain.invoke({"user_question": user_input, "bot_response": bot_answer})
 
-        result = question_chain.invoke(
-            {"user_question": user_input, "bot_response": bot_answer}
-        )
+        raw = result.get("text", "") if isinstance(result, dict) else str(result)
+        lines = raw.strip().split("\n")
 
-        raw_text = result.get("text", "") if isinstance(result, dict) else str(result)
-        lines = raw_text.strip().split("\n")
-
-        # Normalize and clean each question
-        followup_questions = []
+        followups = []
         for line in lines:
             line = line.strip()
-            if line and any(char.isalpha() for char in line):
+            if line and any(c.isalpha() for c in line):
                 question = line.lstrip("1234567890.:- ").strip()
-                followup_questions.append(question)
+                followups.append(question)
 
-        return followup_questions[:3]
+        return followups[:3]
 
 
 @lru_cache(maxsize=1)
 def get_llm_handler() -> LLMHandler:
-    """
-    Returns a singleton LLMHandler (with retained memory), so that chat history persists across calls.
-    """
     return LLMHandler(model="openai", temperature=0.7)

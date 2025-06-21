@@ -22,6 +22,12 @@ class ChatMessageCreate(BaseModel):
     active_pdf_type: str
 
 
+class ChatMessageCreate(BaseModel):
+    user_id: int
+    message: str
+    chat_id: Optional[str] = None
+
+
 # ------- Chat Session (History of chats)
 class ChatSessionSchema(BaseModel):
     session_id: str
@@ -46,6 +52,10 @@ class ChatMessageBase(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ChatHistoryResponse(BaseModel):
+    messages: List[ChatMessageBase]
 
 
 class ChatMessageResponse(BaseModel):

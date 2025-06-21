@@ -16,23 +16,32 @@ from app.config import USER_UPLOAD_PDF_PATH, DEFAULT_PDF_PATH
 from app.utils.pdf_loader import process_pdf_and_store
 from typing import List
 
+
+# rate limit imports slowapi
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.extension import Limiter
+from fastapi import Request
+
 router = APIRouter()
 
 
 #  POST /chat endpoint
 @router.post("/", response_model=ChatMessageResponse)
+@Limiter.limit("5/minutes")
 async def chat(
-    request: ChatRequest,
+    request: Request,
+    request_data: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     chat_message = ChatMessageCreate(
         user_id=current_user.id,  #  Automatically set from token
-        message=request.message,
-        chat_id=request.chat_id,
-        model=request.model,
-        temperature=request.temperature,
-        active_pdf_type=request.active_pdf_type or "default",
+        message=request_data.message,
+        chat_id=request_data.chat_id,
+        model=request_data.model,
+        temperature=request_data.temperature,
+        active_pdf_type=request_data.active_pdf_type or "default",
     )
 
     chat_service = ChatService(db)
