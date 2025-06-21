@@ -22,13 +22,16 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.extension import Limiter
 from fastapi import Request
+from app.main import limiter
 
 router = APIRouter()
+
+router.route_class = limiter.limit("5/minute")
 
 
 #  POST /chat endpoint
 @router.post("/", response_model=ChatMessageResponse)
-@Limiter.limit("5/minutes")
+@limiter.limit("5/minute")
 async def chat(
     request: Request,
     request_data: ChatRequest,
