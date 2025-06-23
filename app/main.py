@@ -5,24 +5,16 @@ import os
 from app.routers import chat, upload, auth
 
 from app.database import Base, engine
-
-
 from fastapi import FastAPI, Request
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
+from app.utils.rate_limiter import limiter
+from slowapi.middleware import SlowAPIMiddleware
 
 app = FastAPI()
 # Initialize the rate limiter
 
-limiter = Limiter(key_func=get_remote_address)
-
-# Register the rate-limit exception handler
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 
 # for auth links

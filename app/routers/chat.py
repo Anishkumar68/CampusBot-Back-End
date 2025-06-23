@@ -17,23 +17,14 @@ from app.utils.pdf_loader import process_pdf_and_store
 from typing import List
 
 
-# rate limit imports slowapi
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-from slowapi.extension import Limiter
-from fastapi import Request
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from fastapi import Depends
 from fastapi import APIRouter, Request
 from app.models import User
-from app.main import limiter
+
+from app.utils.rate_limiter import limiter
 
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
-
-router.route_class = limiter.limit("5/minute")
 
 
 #  POST /chat endpoint
