@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.config import USER_UPLOAD_PDF_PATH
 from app.models import ChatMessage, ChatSession, User
 from app.schemas import ChatMessageCreate, ChatMessageResponse
-from app.services.llm_handler import get_llm_handler, LLMHandler, LLMChain
+from app.services.llm_handler import get_llm_handler, LLMHandler
 from app.utils.intent_matcher import match_intent
 from app.utils.pdf_loader import process_pdf_and_store
 from app.utils.button_loader import get_button_questions
