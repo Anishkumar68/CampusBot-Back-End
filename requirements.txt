@@ -79,6 +79,7 @@ python-jose==3.4.0
 python-multipart==0.0.20
 python-ulid==3.0.0
 PyYAML==6.0.2
+PyMySQL
 redis==6.2.0
 redisvl==0.7.0
 regex==2024.11.6
