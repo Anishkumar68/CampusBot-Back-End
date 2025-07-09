@@ -18,6 +18,7 @@ from app.services.auth import get_current_user, require_role
 from app.config import USER_UPLOAD_PDF_PATH, DEFAULT_PDF_PATH
 from app.utils.pdf_loader import process_pdf_and_store
 from typing import List
+import uuid
 
 
 from fastapi import Depends
@@ -101,15 +102,18 @@ def create_chat_session(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    print("Creating session with:", session_in.dict())
+    title = session_in.title or "Untitled Session"
 
-    session_title = session_in.title or "Untitled Session"
+    def generate_session_id():
+        return str(uuid.uuid4())
 
     new_session = ChatSession(
+        session_id=generate_session_id(),  # optional
         user_id=current_user.id,
-        title=session_in.title,
-        active_pdf_type=session_in.active_pdf_type,
+        title=title or "Untitled Session",
+        active_pdf_type=session_in.active_pdf_type or "default",
     )
+
     db.add(new_session)
     db.commit()
     db.refresh(new_session)

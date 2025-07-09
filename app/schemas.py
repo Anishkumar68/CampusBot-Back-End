@@ -1,9 +1,9 @@
 from pydantic import BaseModel
-from typing import Dict, Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 
 
-# ------- Incoming Chat Request from Frontend (NO user_id needed now)
+# ------------------ Incoming Chat Request from Frontend ------------------ #
 class ChatRequest(BaseModel):
     message: str
     chat_id: Optional[str] = None
@@ -11,33 +11,45 @@ class ChatRequest(BaseModel):
     temperature: float = 0.7
     active_pdf_type: Optional[str] = "default"
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "message": "How do I apply?",
+                "chat_id": None,
+                "model": "gpt-4o-mini",
+                "temperature": 0.7,
+                "active_pdf_type": "default",
+            }
+        }
 
+
+# ------------------ Chat Session Creation ------------------ #
 class ChatSessionCreate(BaseModel):
-    title: str
-    active_pdf_type: str
+    title: Optional[str] = "Untitled Session"
+    active_pdf_type: Optional[str] = "default"
+
+    class Config:
+        json_schema_extra = {
+            "example": {"title": "Application Questions", "active_pdf_type": "default"}
+        }
 
 
 class UpdateSessionTitle(BaseModel):
-    title: str
+    title: Optional[str] = None
+    active_pdf_type: Optional[str] = None
 
 
-# ------- Create Chat Message inside backend
-class ChatMessageCreate(BaseModel):
-    user_id: int
-    message: str
-    chat_id: Optional[str]  # Same as ChatRequest
-    model: str
-    temperature: float
-    active_pdf_type: str
-
-
+# ------------------ Chat Message Creation ------------------ #
 class ChatMessageCreate(BaseModel):
     user_id: int
     message: str
     chat_id: Optional[str] = None
+    model: str = "gpt-4o-mini"
+    temperature: float = 0.7
+    active_pdf_type: str = "default"
 
 
-# ------- Chat Session (History of chats)
+# ------------------ Chat Session Schema ------------------ #
 class ChatSessionSchema(BaseModel):
     session_id: str
     user_id: int
@@ -46,10 +58,10 @@ class ChatSessionSchema(BaseModel):
     active_pdf_type: str
 
     class Config:
-        from_attributes = True  # Pydantic v2 style
+        from_attributes = True
 
 
-# ------- Chat Message (full history message model)
+# ------------------ Chat Message Schema ------------------ #
 class ChatMessageBase(BaseModel):
     id: int
     chat_id: str
@@ -67,7 +79,7 @@ class ChatHistoryResponse(BaseModel):
     messages: List[ChatMessageBase]
 
 
-# schema
+# ------------------ Auth & Token Schemas ------------------ #
 class RegisterRequest(BaseModel):
     email: str
     full_name: str
@@ -83,10 +95,11 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
+# ------------------ Final Chat Response ------------------ #
 class ChatMessageResponse(BaseModel):
     chat_id: str
     response: str
-    followups: Optional[Dict[str, List[str]]] = None  # <== Add this
+    followups: Optional[Dict[str, List[str]]] = None
 
     class Config:
         from_attributes = True
