@@ -8,7 +8,10 @@ from app.schemas import (
     ChatMessageResponse,
     ChatMessageBase,
     ChatSessionSchema,
+    ChatSessionCreate,
+    UpdateSessionTitle,
 )
+
 
 from app.services.chat_service import ChatService
 from app.services.auth import get_current_user, require_role
@@ -94,19 +97,41 @@ def get_user_chat_sessions(
 #  POST /chat/sessions
 @router.post("/sessions", response_model=ChatSessionSchema)
 def create_chat_session(
-    session: ChatSessionSchema,
+    session_in: ChatSessionCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    print("Creating session with:", session_in.dict())
+
+    session_title = session_in.title or "Untitled Session"
+
     new_session = ChatSession(
         user_id=current_user.id,
-        title=session.title,
-        active_pdf_type=session.active_pdf_type,
+        title=session_in.title,
+        active_pdf_type=session_in.active_pdf_type,
     )
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
     return new_session
+
+
+@router.put("/sessions/{session_id}", response_model=ChatSessionSchema)
+def rename_chat_session(
+    session_id: str,
+    data: UpdateSessionTitle,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if session.user_id != current_user.id:
+        raise HTTPException(403, "Not authorized")
+    session.title = data.title
+    db.commit()
+    db.refresh(session)
+    return session
 
 
 #  DELETE /chat/sessions/{session_id}

@@ -6,7 +6,6 @@ from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 import os
 
-
 from app.models import User
 from app.database import get_db
 from app.services.auth import (
@@ -19,26 +18,18 @@ from app.services.auth import (
     REFRESH_TOKEN_EXPIRE_DAYS,
 )
 
+
+from app.schemas import (
+    RegisterRequest,
+    LoginRequest,
+    RefreshTokenRequest,
+)
+
+
 router = APIRouter()
 
 
-# schema
-class RegisterRequest(BaseModel):
-    email: str
-    full_name: str
-    password: str
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str
-
-
-# register new user
+# Register new user
 @router.post("/register")
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
@@ -59,13 +50,20 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # token genrator
     access_token = create_access_token(
-        data={"sub": str(new_user.id)},
+        data={
+            "sub": str(new_user.id),
+            "name": new_user.full_name,
+            "email": new_user.email,
+        },
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = create_access_token(
-        data={"sub": str(new_user.id)},
+        data={
+            "sub": str(new_user.id),
+            "name": new_user.full_name,
+            "email": new_user.email,
+        },
         expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
     )
 
@@ -77,7 +75,7 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     }
 
 
-# login route
+# Login route
 @router.post("/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
@@ -85,11 +83,11 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(
-        data={"sub": str(user.id)},
+        data={"sub": str(user.id), "name": user.full_name, "email": user.email},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = create_access_token(
-        data={"sub": str(user.id)},
+        data={"sub": str(user.id), "name": user.full_name, "email": user.email},
         expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
     )
 
@@ -100,7 +98,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     }
 
 
-# auth  with token
+# Login with OAuth2 form (e.g., Swagger UI)
 @router.post("/token")
 def login_oauth2(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
@@ -110,11 +108,11 @@ def login_oauth2(
         raise HTTPException(status_code=401, detail="Incorrect username or password")
 
     access_token = create_access_token(
-        data={"sub": str(user.id)},
+        data={"sub": str(user.id), "name": user.full_name, "email": user.email},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = create_access_token(
-        data={"sub": str(user.id)},
+        data={"sub": str(user.id), "name": user.full_name, "email": user.email},
         expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
     )
 
@@ -125,17 +123,19 @@ def login_oauth2(
     }
 
 
-# refresh token
+# Refresh token
 @router.post("/refresh")
 def refresh_token(data: RefreshTokenRequest):
     try:
         payload = jwt.decode(data.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
+        name = payload.get("name", "")
+        email = payload.get("email", "")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
         new_access_token = create_access_token(
-            data={"sub": str(user_id)},
+            data={"sub": str(user_id), "name": name, "email": email},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
         )
 

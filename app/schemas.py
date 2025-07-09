@@ -12,6 +12,15 @@ class ChatRequest(BaseModel):
     active_pdf_type: Optional[str] = "default"
 
 
+class ChatSessionCreate(BaseModel):
+    title: str
+    active_pdf_type: str
+
+
+class UpdateSessionTitle(BaseModel):
+    title: str
+
+
 # ------- Create Chat Message inside backend
 class ChatMessageCreate(BaseModel):
     user_id: int
@@ -56,6 +65,22 @@ class ChatMessageBase(BaseModel):
 
 class ChatHistoryResponse(BaseModel):
     messages: List[ChatMessageBase]
+
+
+# schema
+class RegisterRequest(BaseModel):
+    email: str
+    full_name: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 
 class ChatMessageResponse(BaseModel):
