@@ -219,19 +219,33 @@ def set_active_pdf_type(
 
 
 #  GET /chat/sessions/{session_id}/messages
-@router.get("/sessions/{session_id}/messages", response_model=List[ChatMessageBase])
-def get_session_messages(
-    session_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+# @router.get("/sessions/{session_id}/messages", response_model=List[ChatMessageBase])
+# def get_session_messages(
+#     session_id: str,
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     messages = (
+#         db.query(ChatMessage)
+#         .filter(ChatMessage.chat_id == session_id)
+#         .order_by(ChatMessage.timestamp.asc())
+#         .all()
+#     )
+
+
+#     if not messages:
+#         raise HTTPException(status_code=404, detail="No messages found")
+#     return messages
+@router.get("/sessions/{session_id}/messages")
+def get_messages(session_id: str, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter_by(session_id=session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
     messages = (
         db.query(ChatMessage)
-        .filter(ChatMessage.chat_id == session_id)
-        .order_by(ChatMessage.timestamp.asc())
+        .filter_by(session_id=session_id)
+        .order_by(ChatMessage.created_at.asc())
         .all()
     )
-
-    if not messages:
-        raise HTTPException(status_code=404, detail="No messages found")
-    return messages
+    return [msg.to_dict() for msg in messages]
