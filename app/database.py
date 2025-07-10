@@ -8,13 +8,13 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-connect_args = {}
-
+# ✅ PostgreSQL does NOT require `connect_args`
+# You can remove or leave it empty
 engine = create_engine(
     DATABASE_URL,
-    connect_args=connect_args,
-    pool_pre_ping=True,  # Recommended for MySQL
+    pool_pre_ping=True,  # This is still helpful for keeping the connection alive
 )
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
 
