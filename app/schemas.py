@@ -8,7 +8,7 @@ class ChatRequest(BaseModel):
     message: str
     chat_id: Optional[str] = None
     model: str = "gpt-4o-mini"
-    temperature: float = 0.7
+    temperature: float = 0.5
     active_pdf_type: Optional[str] = "default"
 
     class Config:
@@ -17,7 +17,7 @@ class ChatRequest(BaseModel):
                 "message": "How do I apply?",
                 "chat_id": None,
                 "model": "gpt-4o-mini",
-                "temperature": 0.7,
+                "temperature": 0.5,
                 "active_pdf_type": "default",
             }
         }
@@ -25,7 +25,7 @@ class ChatRequest(BaseModel):
 
 # ------------------ Chat Session Creation ------------------ #
 class ChatSessionCreate(BaseModel):
-    title: Optional[str] = "Untitled Session"
+    title: Optional[str] = "student_Questions"
     active_pdf_type: Optional[str] = "default"
 
     class Config:
@@ -45,7 +45,7 @@ class ChatMessageCreate(BaseModel):
     message: str
     chat_id: Optional[str] = None
     model: str = "gpt-4o-mini"
-    temperature: float = 0.7
+    temperature: float = 0.5
     active_pdf_type: str = "default"
 
 

@@ -12,7 +12,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 # You can remove or leave it empty
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,  # This is still helpful for keeping the connection alive
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_pre_ping=True,
 )
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
