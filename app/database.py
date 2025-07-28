@@ -8,8 +8,6 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# ✅ PostgreSQL does NOT require `connect_args`
-# You can remove or leave it empty
 engine = create_engine(
     DATABASE_URL,
     pool_size=5,

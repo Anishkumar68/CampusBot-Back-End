@@ -245,7 +245,7 @@ def get_messages(session_id: str, db: Session = Depends(get_db)):
     messages = (
         db.query(ChatMessage)
         .filter_by(session_id=session_id)
-        .order_by(ChatMessage.created_at.asc())
+        .order_by(ChatMessage.timestamp.asc())
         .all()
     )
     return [msg.to_dict() for msg in messages]

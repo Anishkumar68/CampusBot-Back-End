@@ -1,9 +1,10 @@
 from sqlalchemy import Boolean, Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
-from app.database import Base
 from sqlalchemy.sql import func
+from datetime import datetime, timezone
 import uuid
+
+from app.database import Base
 
 
 # ---------------------- User Table ---------------------- #
@@ -54,7 +55,7 @@ class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
     id = Column(Integer, primary_key=True)
-    chat_id = Column(
+    session_id = Column(
         String(36),
         ForeignKey("chat_sessions.session_id", ondelete="CASCADE"),
         nullable=False,
@@ -62,12 +63,11 @@ class ChatMessage(Base):
     user_id = Column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    role = Column(String(50), nullable=True)
+    role = Column(String(50), nullable=True)  # e.g. "user" or "bot"
     content = Column(Text, nullable=False)
     timestamp = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
-    active_pdf_type = Column(String(50), default="default", nullable=False)
 
     # Relationships
     user = relationship("User", back_populates="messages")
