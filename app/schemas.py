@@ -1,37 +1,22 @@
 from pydantic import BaseModel
 from typing import Optional, List, Dict
 from datetime import datetime
+from uuid import UUID
 
 
 # ------------------ Incoming Chat Request from Frontend ------------------ #
 class ChatRequest(BaseModel):
     message: str
-    chat_id: Optional[str] = None
-    model: str = "gpt-4o-mini"
-    temperature: float = 0.5
+    session_id: Optional[UUID] = None
+    model: str = "gpt-4.1-mini-2025-04-14"
+    temperature: float = 0.2
     active_pdf_type: Optional[str] = "default"
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "message": "How do I apply?",
-                "chat_id": None,
-                "model": "gpt-4o-mini",
-                "temperature": 0.5,
-                "active_pdf_type": "default",
-            }
-        }
 
 
 # ------------------ Chat Session Creation ------------------ #
 class ChatSessionCreate(BaseModel):
     title: Optional[str] = "student_Questions"
     active_pdf_type: Optional[str] = "default"
-
-    class Config:
-        json_schema_extra = {
-            "example": {"title": "Application Questions", "active_pdf_type": "default"}
-        }
 
 
 class UpdateSessionTitle(BaseModel):
@@ -43,15 +28,15 @@ class UpdateSessionTitle(BaseModel):
 class ChatMessageCreate(BaseModel):
     user_id: int
     message: str
-    chat_id: Optional[str] = None
-    model: str = "gpt-4o-mini"
-    temperature: float = 0.5
+    session_id: Optional[UUID] = None
+    model: str = "gpt-4.1-mini-2025-04-14"
+    temperature: float = 0.2
     active_pdf_type: str = "default"
 
 
 # ------------------ Chat Session Schema ------------------ #
 class ChatSessionSchema(BaseModel):
-    session_id: str
+    session_id: UUID
     user_id: int
     created_at: datetime
     title: str
@@ -64,12 +49,11 @@ class ChatSessionSchema(BaseModel):
 # ------------------ Chat Message Schema ------------------ #
 class ChatMessageBase(BaseModel):
     id: int
-    chat_id: str
+    session_id: UUID
     user_id: int
     role: str
     content: str
     timestamp: datetime
-    active_pdf_type: str
 
     class Config:
         from_attributes = True
@@ -97,9 +81,24 @@ class RefreshTokenRequest(BaseModel):
 
 # ------------------ Final Chat Response ------------------ #
 class ChatMessageResponse(BaseModel):
-    chat_id: str
+    session_id: UUID
     response: str
     followups: Optional[Dict[str, List[str]]] = None
 
     class Config:
         from_attributes = True
+
+
+# ------------------ Auto Title Update Helper Schema ------------------ #
+class AutoTitleUpdate(BaseModel):
+    """Schema for auto-updating session title with first question"""
+
+    session_id: UUID
+    first_message: str
+
+    def generate_title(self) -> str:
+        """Generate title from first message (max 50 chars as per model)"""
+        # Take first 47 chars and add "..." if longer
+        if len(self.first_message) > 47:
+            return self.first_message[:47] + "..."
+        return self.first_message

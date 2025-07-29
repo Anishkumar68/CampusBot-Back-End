@@ -15,7 +15,7 @@ load_dotenv()
 
 
 class LLMHandler:
-    def __init__(self, model: str = "openai", temperature: float = 0.3):
+    def __init__(self, model: str = "openai", temperature: float = 0.2):
         self.model_name = model
         self.temperature = temperature
         self.llm = self._load_model()
@@ -30,7 +30,7 @@ class LLMHandler:
     def _load_model(self):
         if self.model_name == "openai":
             return ChatOpenAI(
-                model_name="gpt-4o",
+                model_name="gpt-4.1-mini-2025-04-14",
                 temperature=self.temperature,
                 openai_api_key=os.getenv("OPENAI_API_KEY"),
             )
