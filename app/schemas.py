@@ -1,46 +1,54 @@
-from pydantic import BaseModel
-from typing import Optional, List, Dict
+from pydantic import BaseModel, Field, EmailStr
+from typing import Optional, List, Dict, Union, Literal
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
-# ------------------ Incoming Chat Request from Frontend ------------------ #
+# ------------------ Structured Output for LLM ------------------ #
+class ResponseFormatter(BaseModel):
+    """Structured output format for LLM responses."""
+
+    answer: str = Field(description="The main answer to the user's question")
+    followup_question: str = Field(description="A relevant follow-up question")
+
+
+# ------------------ Incoming Chat Request ------------------ #
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., min_length=1, max_length=5000)
     session_id: Optional[UUID] = None
-    model: str = "gpt-4.1-mini-2025-04-14"
-    temperature: float = 0.2
-    active_pdf_type: Optional[str] = "default"
+    model: str = Field(default="gpt-4o-mini-2024-07-18")
+    temperature: float = Field(default=0.2, ge=0.0, le=2.0)
+    active_pdf_type: Optional[str] = Field(default="default", max_length=50)
 
 
 # ------------------ Chat Session Creation ------------------ #
 class ChatSessionCreate(BaseModel):
-    title: Optional[str] = "student_Questions"
-    active_pdf_type: Optional[str] = "default"
+    title: str = Field(default="New Conversation", max_length=100)
+    active_pdf_type: str = Field(default="default", max_length=50)
 
 
 class UpdateSessionTitle(BaseModel):
-    title: Optional[str] = None
-    active_pdf_type: Optional[str] = None
+    title: Optional[str] = Field(None, max_length=100)
+    active_pdf_type: Optional[str] = Field(None, max_length=50)
 
 
 # ------------------ Chat Message Creation ------------------ #
 class ChatMessageCreate(BaseModel):
-    user_id: int
-    message: str
+    user_id: int = Field(..., gt=0)
+    message: str = Field(..., min_length=1, max_length=5000)
     session_id: Optional[UUID] = None
-    model: str = "gpt-4.1-mini-2025-04-14"
-    temperature: float = 0.2
-    active_pdf_type: str = "default"
+    model: str = Field(default="gpt-4o-mini-2024-07-18")
+    temperature: float = Field(default=0.2, ge=0.0, le=2.0)
+    active_pdf_type: str = Field(default="default", max_length=50)
 
 
 # ------------------ Chat Session Schema ------------------ #
 class ChatSessionSchema(BaseModel):
-    session_id: UUID
-    user_id: int
-    created_at: datetime
-    title: str
-    active_pdf_type: str
+    session_id: UUID = Field(default_factory=uuid4)
+    user_id: int = Field(..., gt=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    title: str = Field(..., max_length=100)
+    active_pdf_type: str = Field(..., max_length=50)
 
     class Config:
         from_attributes = True
@@ -48,12 +56,12 @@ class ChatSessionSchema(BaseModel):
 
 # ------------------ Chat Message Schema ------------------ #
 class ChatMessageBase(BaseModel):
-    id: int
+    id: int = Field(..., gt=0)
     session_id: UUID
-    user_id: int
-    role: str
-    content: str
-    timestamp: datetime
+    user_id: int = Field(..., gt=0)
+    role: Literal["user", "assistant", "system", "tool"]
+    content: str = Field(..., min_length=1)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         from_attributes = True
@@ -61,44 +69,56 @@ class ChatMessageBase(BaseModel):
 
 class ChatHistoryResponse(BaseModel):
     messages: List[ChatMessageBase]
+    total_count: int = Field(default=0, ge=0)
 
 
-# ------------------ Auth & Token Schemas ------------------ #
+# ------------------ Auth Schemas ------------------ #
 class RegisterRequest(BaseModel):
-    email: str
-    full_name: str
-    password: str
+    email: EmailStr
+    full_name: str = Field(..., min_length=2, max_length=100)
+    password: str = Field(..., min_length=8, max_length=128)
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(..., min_length=1)
 
 
 class RefreshTokenRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(..., min_length=1)
 
 
-# ------------------ Final Chat Response ------------------ #
+# ------------------ Enhanced Chat Response ------------------ #
 class ChatMessageResponse(BaseModel):
     session_id: UUID
-    response: str
-    followups: Optional[Dict[str, List[str]]] = None
+    answer: str = Field(description="The main response content")
+    followup_question: Optional[str] = Field(
+        default=None, description="Suggested follow-up"
+    )
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    success: bool = Field(default=True)
 
     class Config:
         from_attributes = True
 
 
-# ------------------ Auto Title Update Helper Schema ------------------ #
+# ------------------ Error Response ------------------ #
+class ErrorResponse(BaseModel):
+    error: str
+    detail: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    success: bool = Field(default=False)
+
+
+# ------------------ Auto Title Update ------------------ #
 class AutoTitleUpdate(BaseModel):
     """Schema for auto-updating session title with first question"""
 
     session_id: UUID
-    first_message: str
+    first_message: str = Field(..., min_length=1, max_length=1000)
 
     def generate_title(self) -> str:
-        """Generate title from first message (max 50 chars as per model)"""
-        # Take first 47 chars and add "..." if longer
+        """Generate title from first message (max 50 chars)"""
         if len(self.first_message) > 47:
             return self.first_message[:47] + "..."
         return self.first_message

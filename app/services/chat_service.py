@@ -10,9 +10,7 @@ from app.config import USER_UPLOAD_PDF_PATH
 from app.models import ChatMessage, ChatSession, User
 from app.schemas import ChatMessageCreate, ChatMessageResponse
 from app.services.llm_handler import get_llm_handler
-from app.utils.intent_matcher import match_intent
-from app.utils.pdf_loader import process_pdf_and_store
-from app.utils.button_loader import get_button_questions
+from app.services.memory_handler import MemoryHandler
 
 
 class ChatService:
@@ -31,17 +29,22 @@ class ChatService:
         )
         active_pdf_type = self._get_active_pdf_type()
 
-        # === Step 3: Generate LLM response
-        response_text = self.llm_handler.get_response(
-            str(chat_data.user_id), chat_data.message
+        # === Step 3: Create memory handler for this user/session ===
+        memory_handler = MemoryHandler(user_id=str(chat_data.user_id), max_turns=5)
+
+        # === Step 4: Generate LLM response using memory handler ===
+        llm_response = self.llm_handler.get_response(
+            memory_handler=memory_handler,
+            message=chat_data.message,
+            use_web_search=False,
         )
 
-        # === Step 4: AI-generated follow-up questions
-        ai_followups = self.llm_handler.suggest_followups(
-            chat_data.message, response_text
-        )
+        # Extract response data
+        response_text = llm_response.get("answer", "No response generated")
+        followup_question = llm_response.get("followup_question")
+        ai_followups = llm_response.get("ai_followups", [])
 
-        # === Step 5: Store conversation
+        # === Step 5: Store conversation in database ===
         self._store_messages(
             chat_data.user_id,
             session_id,
@@ -50,11 +53,14 @@ class ChatService:
             active_pdf_type,
         )
 
-        # === Step 6: Return response
+        # === Step 6: Return response ===
         return ChatMessageResponse(
             session_id=session_id,
-            response=response_text,
-            followups={"ai_generated": ai_followups},
+            answer=response_text,
+            followup_question=followup_question,
+            ai_followups=ai_followups[:3],  # Ensure max 3 followups
+            timestamp=datetime.utcnow(),
+            success=llm_response.get("success", True),
         )
 
     # === Internal Helpers ===
@@ -71,23 +77,20 @@ class ChatService:
 
     def _start_new_chat(self, user_id: int, first_message: str) -> UUID:
         """Create new chat session and auto-generate title from first message"""
-        # ✅ Generate UUID object, not string
         session_uuid = uuid.uuid4()
-
-        # ✅ Auto-generate title from first message (max 50 chars as per model)
         auto_title = self._generate_title_from_message(first_message)
 
         new_session = ChatSession(
-            session_id=session_uuid,  # ✅ Pass UUID object
+            session_id=session_uuid,
             user_id=user_id,
-            title=auto_title,  # ✅ Use auto-generated title
+            title=auto_title,
             active_pdf_type=self._get_active_pdf_type(),
         )
         self.db.add(new_session)
         self.db.commit()
-        self.db.refresh(new_session)  # ✅ Get the saved session
+        self.db.refresh(new_session)
 
-        return new_session.session_id  # ✅ Return UUID object
+        return new_session.session_id
 
     def _generate_title_from_message(self, message: str) -> str:
         """Generate session title from first message (max 50 chars)"""
@@ -101,7 +104,7 @@ class ChatService:
     def _store_messages(
         self,
         user_id: int,
-        session_id: UUID,  # ✅ Accept UUID type
+        session_id: UUID,
         user_message: str,
         bot_response: str,
         pdf_type: str,
@@ -110,14 +113,14 @@ class ChatService:
         messages = [
             ChatMessage(
                 user_id=user_id,
-                session_id=session_id,  # ✅ Pass UUID object
+                session_id=session_id,
                 role="user",
                 content=user_message,
             ),
             ChatMessage(
                 user_id=user_id,
-                session_id=session_id,  # ✅ Pass UUID object
-                role="bot",
+                session_id=session_id,
+                role="assistant",
                 content=bot_response,
             ),
         ]
@@ -129,7 +132,6 @@ class ChatService:
 
     def get_chat_history(self, session_id: UUID, user_id: int) -> list:
         """Get chat history for a specific session"""
-        # Validate session belongs to user
         session = (
             self.db.query(ChatSession)
             .filter(
@@ -144,7 +146,7 @@ class ChatService:
         messages = (
             self.db.query(ChatMessage)
             .filter(ChatMessage.session_id == session_id)
-            .order_by(ChatMessage.timestamp)
+            .order_by(ChatMessage.timestamp.asc())
             .all()
         )
 
@@ -178,3 +180,47 @@ class ChatService:
         self.db.commit()
 
         return session
+
+    def get_chat_with_web_search(
+        self, chat_data: ChatMessageCreate
+    ) -> ChatMessageResponse:
+        """Handle chat with web search enabled"""
+        user = self._validate_user(chat_data.user_id)
+        self._validate_message(chat_data.message)
+
+        session_id = chat_data.session_id or self._start_new_chat(
+            chat_data.user_id, chat_data.message
+        )
+
+        # Create memory handler
+        memory_handler = MemoryHandler(user_id=str(chat_data.user_id), max_turns=5)
+
+        # Use web search
+        llm_response = self.llm_handler.get_response(
+            memory_handler=memory_handler,
+            message=chat_data.message,
+            use_web_search=True,
+        )
+
+        response_text = llm_response.get("answer", "Web search completed")
+        followup_question = llm_response.get(
+            "followup_question", "Would you like to search for more information?"
+        )
+
+        # Store in database
+        self._store_messages(
+            chat_data.user_id,
+            session_id,
+            chat_data.message,
+            response_text,
+            "web_search",
+        )
+
+        return ChatMessageResponse(
+            session_id=session_id,
+            answer=response_text,
+            followup_question=followup_question,
+            ai_followups=[],
+            timestamp=datetime.utcnow(),
+            success=True,
+        )

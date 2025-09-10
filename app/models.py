@@ -57,7 +57,6 @@ class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
     id = Column(Integer, primary_key=True)
-    # ✅ FIXED - Changed from String(36) to UUID(as_uuid=True)
     session_id = Column(
         UUID(as_uuid=True),
         ForeignKey("chat_sessions.session_id", ondelete="CASCADE"),
@@ -66,7 +65,7 @@ class ChatMessage(Base):
     user_id = Column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    role = Column(String(50), nullable=True)  # e.g. "user" or "bot"
+    role = Column(String(50), nullable=True)
     content = Column(Text, nullable=False)
     timestamp = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
