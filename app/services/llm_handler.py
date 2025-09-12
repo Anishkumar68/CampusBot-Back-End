@@ -31,8 +31,7 @@ class LLMHandler:
                 model="gpt-4o-mini",
                 temperature=self.temperature,
                 openai_api_key=os.getenv("OPENAI_API_KEY"),
-                max_tokens=512,
-                request_timeout=30,
+             
             )
             return base.with_structured_output(ResponseFormatter)
         raise ValueError(f"Unsupported model: {self.model_name}")
@@ -44,8 +43,6 @@ class LLMHandler:
                 model="gpt-4o-mini",
                 temperature=self.temperature,
                 openai_api_key=os.getenv("OPENAI_API_KEY"),
-                max_tokens=256,
-                request_timeout=20,
             )
             tool = {"type": "web_search_preview"}
             return llm.bind_tools([tool])
