@@ -1,13 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List
-import uuid
 from uuid import UUID
 
-from app.models import ChatMessage, ChatSession, User
+from app.models.models import ChatMessage, ChatSession, User
 from app.database import get_db
 from app.schemas import (
-    ChatRequest,
     ChatMessageCreate,
     ChatMessageResponse,
     ChatMessageBase,
@@ -22,7 +20,6 @@ from app.utils.rate_limiter import limiter
 router = APIRouter()
 
 
-# ---------------- POST /chat ----------------
 @router.post("/", response_model=ChatMessageResponse)
 @limiter.limit("10/minute")
 async def handle_chat(
@@ -33,10 +30,11 @@ async def handle_chat(
 ):
     chat_service = ChatService(db)
     chat_data.user_id = current_user.id
-    return await chat_service.handle_chat(chat_data)
+
+    resp = await chat_service.handle_chat(chat_data)
+    return resp
 
 
-# ---------------- GET /chat/history/{session_id} ----------------
 @router.get("/history/{session_id}", response_model=List[ChatMessageBase])
 def get_chat_history(
     session_id: UUID,
@@ -58,7 +56,6 @@ def get_chat_history(
     return messages
 
 
-# ---------------- GET /chat/sessions/{user_id} ----------------
 @router.get("/sessions/{user_id}", response_model=List[ChatSessionSchema])
 def get_chat_sessions(
     user_id: int,
@@ -79,7 +76,6 @@ def get_chat_sessions(
     return sessions
 
 
-# ---------------- POST /chat/sessions ----------------
 @router.post("/sessions", response_model=ChatSessionSchema)
 def create_chat_session(
     session_data: ChatSessionCreate,
@@ -97,7 +93,6 @@ def create_chat_session(
     return new_session
 
 
-# ---------------- PUT /chat/sessions/{session_id} ----------------
 @router.put("/sessions/{session_id}", response_model=ChatSessionSchema)
 def update_chat_session(
     session_id: UUID,
@@ -123,7 +118,6 @@ def update_chat_session(
     return session
 
 
-# ---------------- DELETE /chat/sessions/{session_id} ----------------
 @router.delete("/sessions/{session_id}")
 def delete_chat_session(
     session_id: UUID,
@@ -138,36 +132,38 @@ def delete_chat_session(
             status_code=403, detail="Not authorized to delete this session"
         )
 
+    # Also delete all related messages
+    db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
     db.delete(session)
     db.commit()
+
     return {"message": "Session deleted successfully"}
 
 
-# ---------------- DELETE /chat/history/{session_id} ----------------
 @router.delete("/history/{session_id}")
 def delete_chat_history(
     session_id: UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-
     session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     if session.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).all()
-    if not messages:
+    deleted = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.session_id == session_id)
+        .delete(synchronize_session=False)
+    )
+    if deleted == 0:
         raise HTTPException(status_code=404, detail="No messages found")
 
-    for message in messages:
-        db.delete(message)
     db.commit()
     return {"message": "Chat history deleted successfully"}
 
 
-# ---------------- GET /chat/active_pdf_types ----------------
 @router.get("/active_pdf_types")
 def get_active_pdf_types(
     current_user: User = Depends(get_current_user),
@@ -179,14 +175,9 @@ def get_active_pdf_types(
         .distinct()
         .all()
     )
-
-    if not pdf_types:
-        return []
-
     return [pt[0] for pt in pdf_types]
 
 
-# ---------------- POST /chat/sessions/{session_id}/set_active_pdf ----------------
 @router.post("/sessions/{session_id}/set_active_pdf")
 def set_active_pdf_type(
     session_id: UUID,
@@ -205,7 +196,6 @@ def set_active_pdf_type(
     return {"message": "Active PDF type updated successfully"}
 
 
-# ---------------- GET /chat/sessions/{session_id}/messages ----------------
 @router.get("/sessions/{session_id}/messages", response_model=List[ChatMessageBase])
 def get_session_messages(
     session_id: UUID,
@@ -227,14 +217,12 @@ def get_session_messages(
     return messages
 
 
-# endpoint to access and validate session
 @router.get("/sessions/{session_id}/validate")
 def validate_session_access(
     session_id: UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Validate that a session exists and user has access to it"""
     session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")

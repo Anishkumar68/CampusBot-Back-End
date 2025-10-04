@@ -1,18 +1,15 @@
-from datetime import datetime
 import os
-import uuid
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.config import USER_UPLOAD_PDF_PATH
-from app.models import ChatMessage, ChatSession, User
+from app.models.models import ChatMessage, ChatSession, User
 from app.schemas import ChatMessageCreate, ChatMessageResponse
 from app.services.llm_handler import get_llm_handler
 from app.utils.intent_matcher import match_intent
-from app.utils.pdf_loader import process_pdf_and_store
-from app.utils.button_loader import get_button_questions
+from app.utils.document_indexer import process_pdf_and_store
 
 
 class ChatService:
@@ -21,43 +18,61 @@ class ChatService:
         self.llm_handler = get_llm_handler()
 
     async def handle_chat(self, chat_data: ChatMessageCreate) -> ChatMessageResponse:
-        # === Step 1: Validate input ===
+        # 1️⃣ Validate input
         user = self._validate_user(chat_data.user_id)
         self._validate_message(chat_data.message)
 
-        # === Step 2: Setup chat session ===
+        # 2️⃣ If user uploaded PDF in this request, process it
+        if getattr(chat_data, "uploaded_pdf_bytes", None):
+            process_pdf_and_store(
+                chat_data.uploaded_pdf_bytes, user_id=chat_data.user_id
+            )
+            # After storing, you may want to re-index in RAG pipeline, etc.
+
+        # 3️⃣ Decide session
         session_id = chat_data.session_id or self._start_new_chat(
             chat_data.user_id, chat_data.message
         )
-        active_pdf_type = self._get_active_pdf_type()
+        pdf_context_type = self._get_active_pdf_type()
 
-        # === Step 3: Generate LLM response
-        response_text = self.llm_handler.get_response(
-            str(chat_data.user_id), chat_data.message
+        # 4️⃣ Optionally route by intent
+        intent = match_intent(chat_data.message)
+        # You can extend llm_handler to support different chains by intent
+        # e.g. if intent == "quiz_generation": llm_handler.call_quiz_chain(...)
+
+        # 5️⃣ Get LLM / RAG response (this method should encapsulate fallback logic)
+        response_text, extra = self.llm_handler.get_response_with_metadata(
+            user_id=str(chat_data.user_id),
+            message=chat_data.message,
         )
+        # `extra` might contain metadata like “used_web_search”, “source_urls”, etc.
 
-        # === Step 4: AI-generated follow-up questions
+        # 6️⃣ Generate follow-ups
         ai_followups = self.llm_handler.suggest_followups(
             chat_data.message, response_text
         )
 
-        # === Step 5: Store conversation
+        # 7️⃣ Persist messages
         self._store_messages(
             chat_data.user_id,
             session_id,
             chat_data.message,
             response_text,
-            active_pdf_type,
+            pdf_context_type,
         )
 
-        # === Step 6: Return response
-        return ChatMessageResponse(
+        # 8️⃣ Build response schema
+        resp = ChatMessageResponse(
             session_id=session_id,
             response=response_text,
             followups={"ai_generated": ai_followups},
         )
 
-    # === Internal Helpers ===
+        # 9️⃣ If extra metadata (like source links), include in schema
+        if extra and "source_urls" in extra:
+            resp.source_urls = extra["source_urls"]
+
+        return resp
 
     def _validate_user(self, user_id: int) -> User:
         user = self.db.query(User).filter(User.id == user_id).first()
@@ -70,30 +85,21 @@ class ChatService:
             raise HTTPException(status_code=400, detail="Message cannot be empty")
 
     def _start_new_chat(self, user_id: int, first_message: str) -> UUID:
-        """Create new chat session and auto-generate title from first message"""
-        # ✅ Generate UUID object, not string
-        session_uuid = uuid.uuid4()
-
-        # ✅ Auto-generate title from first message (max 50 chars as per model)
-        auto_title = self._generate_title_from_message(first_message)
-
+        session_uuid = uuid4()
+        title = self._generate_title_from_message(first_message)
         new_session = ChatSession(
-            session_id=session_uuid,  # ✅ Pass UUID object
+            session_id=session_uuid,
             user_id=user_id,
-            title=auto_title,  # ✅ Use auto-generated title
+            title=title,
             active_pdf_type=self._get_active_pdf_type(),
         )
         self.db.add(new_session)
         self.db.commit()
-        self.db.refresh(new_session)  # ✅ Get the saved session
-
-        return new_session.session_id  # ✅ Return UUID object
+        self.db.refresh(new_session)
+        return new_session.session_id
 
     def _generate_title_from_message(self, message: str) -> str:
-        """Generate session title from first message (max 50 chars)"""
-        if len(message) > 47:
-            return message[:47] + "..."
-        return message
+        return message[:47] + "..." if len(message) > 47 else message
 
     def _get_active_pdf_type(self) -> str:
         return "uploaded" if os.path.exists(USER_UPLOAD_PDF_PATH) else "default"
@@ -101,35 +107,29 @@ class ChatService:
     def _store_messages(
         self,
         user_id: int,
-        session_id: UUID,  # ✅ Accept UUID type
+        session_id: UUID,
         user_message: str,
         bot_response: str,
         pdf_type: str,
     ):
-        """Store both user and bot messages"""
-        messages = [
+        msgs = [
             ChatMessage(
                 user_id=user_id,
-                session_id=session_id,  # ✅ Pass UUID object
+                session_id=session_id,
                 role="user",
                 content=user_message,
             ),
             ChatMessage(
                 user_id=user_id,
-                session_id=session_id,  # ✅ Pass UUID object
+                session_id=session_id,
                 role="bot",
                 content=bot_response,
             ),
         ]
-
-        self.db.add_all(messages)
+        self.db.add_all(msgs)
         self.db.commit()
 
-    # === Additional Helper Methods ===
-
-    def get_chat_history(self, session_id: UUID, user_id: int) -> list:
-        """Get chat history for a specific session"""
-        # Validate session belongs to user
+    def get_chat_history(self, session_id: UUID, user_id: int):
         session = (
             self.db.query(ChatSession)
             .filter(
@@ -137,7 +137,6 @@ class ChatService:
             )
             .first()
         )
-
         if not session:
             raise HTTPException(status_code=404, detail="Chat session not found")
 
@@ -147,34 +146,27 @@ class ChatService:
             .order_by(ChatMessage.timestamp)
             .all()
         )
-
         return messages
 
-    def get_user_sessions(self, user_id: int) -> list:
-        """Get all chat sessions for a user"""
-        sessions = (
+    def get_user_sessions(self, user_id: int):
+        return (
             self.db.query(ChatSession)
             .filter(ChatSession.user_id == user_id)
             .order_by(ChatSession.created_at.desc())
             .all()
         )
 
-        return sessions
-
     def update_session_title(self, session_id: UUID, user_id: int, new_title: str):
-        """Update session title"""
         session = (
             self.db.query(ChatSession)
             .filter(
-                ChatSession.session_id == session_id, ChatSession.user_id == user_id
+                ChatSession.session_id == session_id,
+                ChatSession.user_id == user_id,
             )
             .first()
         )
-
         if not session:
             raise HTTPException(status_code=404, detail="Chat session not found")
-
-        session.title = new_title[:50]  # Ensure max length
+        session.title = new_title[:50]
         self.db.commit()
-
         return session

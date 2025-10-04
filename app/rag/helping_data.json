@@ -1,0 +1,54 @@
+{
+  "student_help": [
+    {
+      "topic": "admissions",
+      "question": "What are the admission deadlines for Fall 2025?",
+      "answer": "The Fall 2025 application deadline is August 15, 2025. You must submit all required transcripts, test scores, and supporting documents by that date.",
+      "last_updated": "2025-06-01",
+      "related_links": [
+        "https://rio.edu/admissions",
+        "https://rio.edu/admissions/deadlines"
+      ]
+    },
+    {
+      "topic": "tuition",
+      "question": "How much is the tuition for undergraduate students?",
+      "answer": "Undergraduate tuition is currently $12,000 per semester for in‑state students, and $18,000 per semester for out‑of‑state students.",
+      "last_updated": "2025-05-20",
+      "related_links": [
+        "https://rio.edu/tuition",
+        "https://rio.edu/financial-aid"
+      ]
+    },
+    {
+      "topic": "scholarships",
+      "question": "Are scholarships available for international students?",
+      "answer": "Yes, we have limited scholarships available for international students. You must apply by June 30, 2025. Check eligibility criteria on the Financial Aid page.",
+      "last_updated": "2025-04-10",
+      "related_links": [
+        "https://rio.edu/scholarships",
+        "https://rio.edu/international"
+      ]
+    },
+    {
+      "topic": "housing",
+      "question": "Does the college provide on‑campus housing?",
+      "answer": "Yes, on‑campus dormitories are available. You must submit the housing application by July 1, 2025. Rooms are assigned on a first‑come basis.",
+      "last_updated": "2025-03-15",
+      "related_links": [
+        "https://rio.edu/housing",
+        "https://rio.edu/campus-life"
+      ]
+    },
+    {
+      "topic": "courses",
+      "question": "How do I choose my major / course specialization?",
+      "answer": "You can explore majors via our Academic Advising office. Consider your interests, job prospects, and required prerequisites. Appointment scheduling is open now.",
+      "last_updated": "2025-01-10",
+      "related_links": [
+        "https://rio.edu/academics",
+        "https://rio.edu/advising"
+      ]
+    }
+  ]
+}
